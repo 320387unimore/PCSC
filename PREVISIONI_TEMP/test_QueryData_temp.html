@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temperatura Query + Previsione</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 24px;
+        background: #f5f7fb;
+        color: #1c2333;
+      }
+      .card {
+        max-width: 920px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      }
+      .controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+      input { width: 100px; padding: 8px 10px; }
+      button {
+        padding: 9px 14px;
+        border: none;
+        border-radius: 8px;
+        background: #2463eb;
+        color: #fff;
+        cursor: pointer;
+      }
+      #status { margin-bottom: 12px; color: #32405f; }
+      canvas { width: 100%; min-height: 340px; }
+    </style>
+    <script>
+      const QUERY_URL = 'https://europe-west8-pcloud2026-495807.cloudfunctions.net/query_data_temp';
+      const PREDICT_URL = 'https://europe-west8-pcloud2026-495807.cloudfunctions.net/predict_temp';
+      let chart;
+
+      async function fetchAsForm(url, payload) {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          body: new URLSearchParams({ data: JSON.stringify(payload) })
+        });
+        if (!response.ok) {
+          const txt = await response.text();
+          throw new Error('HTTP ' + response.status + ' - ' + txt);
+        }
+        return response;
+      }
+
+      async function runQueryAndPredict() {
+        const status = document.getElementById('status');
+        const nValue = Number(document.getElementById('nValue').value);
+        status.textContent = 'Caricamento dati...';
+
+        const queryResponse = await fetchAsForm(QUERY_URL, { N: nValue });
+        const tempList = await queryResponse.json();
+
+        const predictPayload = {
+          'tempOut-1': tempList[0],
+          'tempOut-2': tempList[1],
+          'tempOut-3': tempList[2],
+          'weekend01': 0
+        };
+
+        const predictResponse = await fetchAsForm(PREDICT_URL, predictPayload);
+        const prediction = Number(await predictResponse.text());
+
+        const labels = tempList.map((_, idx) => 'P' + (idx + 1));
+        labels.push('Forecast');
+
+        const historyData = tempList.slice();
+        historyData.push(null);
+
+        const predictionData = new Array(tempList.length).fill(null);
+        predictionData.push(prediction);
+
+        drawChart(labels, historyData, predictionData);
+        status.textContent = 'Ultimi ' + tempList.length + ' valori + previsione: ' + prediction.toFixed(2) + ' °C';
+      }
+
+      function drawChart(labels, historyData, predictionData) {
+        const ctx = document.getElementById('tempChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'Temperatura storica (°C)',
+                data: historyData,
+                borderColor: '#2463eb',
+                backgroundColor: 'rgba(36,99,235,0.15)',
+                tension: 0.25,
+                pointRadius: 3
+              },
+              {
+                label: 'Previsione',
+                data: predictionData,
+                borderColor: '#e24a3b',
+                backgroundColor: '#e24a3b',
+                showLine: false,
+                pointRadius: 6
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { title: { display: true, text: 'Temperatura (°C)' } } }
+          }
+        });
+      }
+
+      async function handleRun() {
+        try { await runQueryAndPredict(); }
+        catch (error) { document.getElementById('status').textContent = 'Errore: ' + error.message; }
+      }
+    </script>
+</head>
+<body>
+<div class="card">
+  <h2>Query Temperatura + Previsione</h2>
+  <div class="controls">
+    <label for="nValue">Numero punti (N)</label>
+    <input id="nValue" type="number" min="3" value="5">
+    <button onclick="handleRun()">Esegui</button>
+  </div>
+  <div id="status">Pronto</div>
+  <div style="height: 380px;">
+    <canvas id="tempChart"></canvas>
+  </div>
+</div>
+</body>
+</html>
