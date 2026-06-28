@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Umidità Relativa Query + Previsione</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 24px;
+        background: #f5f7fb;
+        color: #1c2333;
+      }
+      .card {
+        max-width: 920px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      }
+      .controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+      input { width: 100px; padding: 8px 10px; }
+      button {
+        padding: 9px 14px;
+        border: none;
+        border-radius: 8px;
+        background: #2463eb;
+        color: #fff;
+        cursor: pointer;
+      }
+      #status { margin-bottom: 12px; color: #32405f; }
+      canvas { width: 100%; min-height: 340px; }
+    </style>
+    <script>
+      const QUERY_URL = 'https://europe-west8-pcloud2026-495807.cloudfunctions.net/query_data_rhu';
+      const PREDICT_URL = 'https://europe-west8-pcloud2026-495807.cloudfunctions.net/predict_rhu';
+      let chart;
+
+      async function fetchAsForm(url, payload) {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          body: new URLSearchParams({ data: JSON.stringify(payload) })
+        });
+        if (!response.ok) {
+          const txt = await response.text();
+          throw new Error('HTTP ' + response.status + ' - ' + txt);
+        }
+        return response;
+      }
+
+      async function runQueryAndPredict() {
+        const status = document.getElementById('status');
+        const nValue = Number(document.getElementById('nValue').value);
+        status.textContent = 'Caricamento dati...';
+
+        const queryResponse = await fetchAsForm(QUERY_URL, { N: nValue });
+        const rhuList = await queryResponse.json();
+
+        const predictPayload = {
+          'rh-1': rhuList[0],
+          'rh-2': rhuList[1],
+          'rh-3': rhuList[2],
+          'weekend01': 0
+        };
+
+        const predictResponse = await fetchAsForm(PREDICT_URL, predictPayload);
+        const prediction = Number(await predictResponse.text());
+
+        const labels = rhuList.map((_, idx) => 'P' + (idx + 1));
+        labels.push('Forecast');
+
+        const historyData = rhuList.slice();
+        historyData.push(null);
+
+        const predictionData = new Array(rhuList.length).fill(null);
+        predictionData.push(prediction);
+
+        drawChart(labels, historyData, predictionData);
+        status.textContent = 'Ultimi ' + rhuList.length + ' valori + previsione: ' + prediction.toFixed(2) + ' %';
+      }
+
+      function drawChart(labels, historyData, predictionData) {
+        const ctx = document.getElementById('rhuChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'Umidità relativa storica (%)',
+                data: historyData,
+                borderColor: '#2463eb',
+                backgroundColor: 'rgba(36,99,235,0.15)',
+                tension: 0.25,
+                pointRadius: 3
+              },
+              {
+                label: 'Previsione',
+                data: predictionData,
+                borderColor: '#e24a3b',
+                backgroundColor: '#e24a3b',
+                showLine: false,
+                pointRadius: 6
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { title: { display: true, text: 'Umidità relativa (%)' } } }
+          }
+        });
+      }
+
+      async function handleRun() {
+        try { await runQueryAndPredict(); }
+        catch (error) { document.getElementById('status').textContent = 'Errore: ' + error.message; }
+      }
+    </script>
+</head>
+<body>
+<div class="card">
+  <h2>Query Umidità Relativa + Previsione</h2>
+  <div class="controls">
+    <label for="nValue">Numero punti (N)</label>
+    <input id="nValue" type="number" min="3" value="5">
+    <button onclick="handleRun()">Esegui</button>
+  </div>
+  <div id="status">Pronto</div>
+  <div style="height: 380px;">
+    <canvas id="rhuChart"></canvas>
+  </div>
+</div>
+</body>
+</html>
