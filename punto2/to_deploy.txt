@@ -1,1 +1,0 @@
-gcloud functions deploy hello_http --region europe-west8 --runtime python310 --trigger-http --allow-unauthenticated --gen2
