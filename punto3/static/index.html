@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8"/>
+    <!-- Rende la pagina responsive, quindi permette di adattarla alla larghezza dello schermo del dispositivo
+         che si sta utilizzando, invece di essere sempre mostrata alla dimensione fissa di un desktop -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Smart Home Dashboard – Login</title>
+    <!-- Collega il foglio di stile con i colori, i font e il layout di tutta
+         la dashboard  -->
+    <link rel="stylesheet" href="assets/css/style.css"/>
+</head>
+<body>
+<!-- Contenitore che occupa tutta l'altezza della finestra e centra il login sia orizzontalmente che verticalmente
+     (il centraggio è gestito dalla classe CSS "login-page") -->
+<div class="login-page">
+
+    <!-- Il "box" bianco con bordi arrotondati e ombra che contiene il form -->
+    <div class="login-box">
+
+        <!-- Intestazione con titolo e sottotitolo -->
+        <div class="login-logo">
+            <h1>Smart Home</h1>
+            <p>Dashboard IoT – Pervasive Computing</p>
+        </div>
+
+        <!-- Form di login vero e proprio.
+             "method='POST'" indica che, quando inviato, il browser farà una
+             richiesta HTTP di tipo POST (i dati inseriti vengono spediti nel
+             corpo della richiesta, non visibili nell'URL).
+             "action='/login'" indica l'indirizzo del server a cui inviare
+             questi dati: corrisponde esattamente alla rotta @app.route('/login')
+             definita in server.py. -->
+        <form method="POST" action="/login">
+
+            <!-- Campo per l'username -->
+            <div class="form-group">
+                <label for="username">Username</label>
+                <!-- "name='username'" è il nome con cui questo valore viene
+                     inviato al server dentro il corpo della richiesta POST.
+                     "required" impedisce l'invio del form se il campo è vuoto
+                     (controllo fatto dal browser stesso, non da JavaScript) -->
+                <input type="text" id="username" name="username" placeholder="Inserisci username" required/>
+            </div>
+
+            <!-- Campo per la password.
+                 "type='password'" fa sì che il browser mostri dei pallini/asterischi
+                 al posto dei caratteri digitati, per non mostrarla sullo schermo -->
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Inserisci password" required/>
+            </div>
+
+            <!-- Bottone di invio del form. "type='submit'" fa sì che, al click,
+                 il browser invii automaticamente il form a ciò che è indicato
+                 in "action" (cioè "/login"), senza bisogno di alcun codice
+                 JavaScript scritto da noi -->
+            <button type="submit" class="btn btn-full">Accedi</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>
