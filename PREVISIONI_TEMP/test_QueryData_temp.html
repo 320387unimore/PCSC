@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Temperatura Query + Previsione</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
+      /* Stili generali per lo sfondo e il testo della pagina */
       body {
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
         margin: 0;
@@ -13,6 +15,7 @@
         background: #f5f7fb;
         color: #1c2333;
       }
+      /* Stile del contenitore principale (il box bianco centrato) */
       .card {
         max-width: 920px;
         margin: 0 auto;
@@ -21,6 +24,7 @@
         padding: 20px;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
       }
+      /* Layout per allineare l'input del numero e il pulsante di invio */
       .controls {
         display: flex;
         gap: 12px;
@@ -28,7 +32,9 @@
         margin-bottom: 16px;
         flex-wrap: wrap;
       }
+      /* Dimensione e spaziatura interna del campo numerico */
       input { width: 100px; padding: 8px 10px; }
+      /* Stile grafico del pulsante blu di esecuzione */
       button {
         padding: 9px 14px;
         border: none;
@@ -37,94 +43,124 @@
         color: #fff;
         cursor: pointer;
       }
+      /* Stile per il testo di stato (es. Caricamento, Errore, Pronto) */
       #status { margin-bottom: 12px; color: #32405f; }
+      /* Dimensione minima del canvas in cui verrà disegnato il grafico */
       canvas { width: 100%; min-height: 340px; }
     </style>
+
     <script>
+      /* Definizione degli endpoint URL delle due Cloud Function di Google */
       const QUERY_URL = 'https://europe-west8-pcloud2026-495807.cloudfunctions.net/query_data_temp';
       const PREDICT_URL = 'https://europe-west8-pcloud2026-495807.cloudfunctions.net/predict_temp';
+      /* Variabile globale che conterrà l'istanza del grafico attivo */
       let chart;
 
+      /* Funzione asincrona di supporto per fare richieste POST simulando l'invio di un form HTML (Form URL Encoded) */
       async function fetchAsForm(url, payload) {
         const response = await fetch(url, {
-          method: 'POST',
+          method: 'POST', // Metodo HTTP POST obbligatorio per le Cloud Function
           headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          /* Converte il payload JSON in stringa e lo inserisce nella chiave 'data' del form web */
           body: new URLSearchParams({ data: JSON.stringify(payload) })
         });
+        /* Gestione degli errori di rete: se la risposta non è OK (es. errore 400 o 500), blocca tutto e lancia un'eccezione */
         if (!response.ok) {
           const txt = await response.text();
           throw new Error('HTTP ' + response.status + ' - ' + txt);
         }
-        return response;
+        return response; // Restituisce l'oggetto di risposta di successo
       }
 
+      /* Funzione principale che coordina la lettura dei dati storici e la successiva richiesta di previsione */
       async function runQueryAndPredict() {
         const status = document.getElementById('status');
+        /* Preleva il numero N inserito dall'utente nella pagina web */
         const nValue = Number(document.getElementById('nValue').value);
-        status.textContent = 'Caricamento dati...';
+        status.textContent = 'Caricamento dati...'; // Aggiorna il testo di stato a schermo
 
+        /* 1. Chiama la Cloud Function di lettura (Query) chiedendo gli ultimi N record */
         const queryResponse = await fetchAsForm(QUERY_URL, { N: nValue });
+        /* Riceve la lista delle ultime N temperature (es. [14.2, 13.8, 13.5, 12.9]) */
         const tempList = await queryResponse.json();
 
+        /* 2. Prepara le variabili di input (features) per il modello di Machine Learning.
+           Prende i primi tre valori della lista ricevuta (che essendo in ordine decrescente sono i più recenti) */
         const predictPayload = {
-          'tempOut-1': tempList[0],
-          'tempOut-2': tempList[1],
-          'tempOut-3': tempList[2],
-          'weekend01': 0
+          'tempOut-1': tempList[0], // Temperatura di 1 ora fa
+          'tempOut-2': tempList[1], // Temperatura di 2 ore fa
+          'tempOut-3': tempList[2], // Temperatura di 3 ore fa
+          'weekend01': 0            // Imposta feriale di default (0)
         };
 
+        /* 3. Chiama la Cloud Function di previsione inviando le features appena create */
         const predictResponse = await fetchAsForm(PREDICT_URL, predictPayload);
+        /* Riceve il singolo numero decimale predetto dal modello e lo converte in formato numerico */
         const prediction = Number(await predictResponse.text());
 
+        /* --- PREPARAZIONE DATI PER IL GRAFICO --- */
+        /* Crea le etichette per l'asse X (es. P1, P2, P3...) e aggiunge alla fine la colonna 'Forecast' */
         const labels = tempList.map((_, idx) => 'P' + (idx + 1));
         labels.push('Forecast');
 
+        /* Copia i dati storici e aggiunge un valore vuoto (null) alla fine, in corrispondenza del punto di Forecast */
         const historyData = tempList.slice();
         historyData.push(null);
 
+        /* Crea una lista di valori vuoti (null) lunga quanto lo storico, e inserisce il valore predetto solo alla fine.
+           In questo modo i dati storici e la previsione rimarranno visivamente separati sul grafico */
         const predictionData = new Array(tempList.length).fill(null);
         predictionData.push(prediction);
 
+        /* Invoca la funzione per disegnare effettivamente il grafico a schermo con i dati elaborati */
         drawChart(labels, historyData, predictionData);
+        /* Stampa a schermo l'esito finale mostrando la temperatura stimata arrotondata a due cifre decimali */
         status.textContent = 'Ultimi ' + tempList.length + ' valori + previsione: ' + prediction.toFixed(2) + ' °C';
       }
 
+      /* Funzione che si occupa della configurazione grafica ed estetica di Chart.js */
       function drawChart(labels, historyData, predictionData) {
         const ctx = document.getElementById('tempChart').getContext('2d');
+        /* Se esisteva già un grafico di una query precedente, lo distrugge per evitare sovrapposizioni visive */
         if (chart) chart.destroy();
+        /* Crea una nuova istanza di grafico a linee */
         chart = new Chart(ctx, {
           type: 'line',
           data: {
-            labels,
+            labels, // Assegna le etichette dell'asse X
             datasets: [
+              /* Configurazione del tracciato della linea blu per i dati storici esistenti */
               {
                 label: 'Temperatura storica (°C)',
                 data: historyData,
-                borderColor: '#2463eb',
-                backgroundColor: 'rgba(36,99,235,0.15)',
-                tension: 0.25,
-                pointRadius: 3
+                borderColor: '#2463eb', // Colore della linea blu
+                backgroundColor: 'rgba(36,99,235,0.15)', // Sfumatura azzurra sotto la linea
+                tension: 0.25, // Rende la linea leggermente curva e morbida
+                pointRadius: 3 // Dimensione dei pallini dei punti storici
               },
+              /* Configurazione del punto rosso isolato per rappresentare la previsione futura */
               {
                 label: 'Previsione',
                 data: predictionData,
-                borderColor: '#e24a3b',
+                borderColor: '#e24a3b', // Colore rosso per la previsione
                 backgroundColor: '#e24a3b',
-                showLine: false,
-                pointRadius: 6
+                showLine: false, // Disattiva la linea continua: mostra solo un punto isolato nel futuro
+                pointRadius: 6 // Pallino più grande per metterlo in evidenza rispetto allo storico
               }
             ]
           },
           options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: { y: { title: { display: true, text: 'Temperatura (°C)' } } }
+            responsive: true, // Il grafico si adatta automaticamente se si restringe lo schermo
+            maintainAspectRatio: false, // Permette di forzare l'altezza bloccata impostata nel CSS
+            scales: { y: { title: { display: true, text: 'Temperatura (°C)' } } } // Aggiunge il titolo sull'asse Y
           }
         });
       }
 
+      /* Gestore dell'evento click del pulsante. Serve a intercettare eventuali errori delle funzioni asincrone */
       async function handleRun() {
         try { await runQueryAndPredict(); }
+        /* Se qualcosa fallisce nelle chiamate Cloud, mostra il messaggio di errore rosso nella pagina */
         catch (error) { document.getElementById('status').textContent = 'Errore: ' + error.message; }
       }
     </script>
