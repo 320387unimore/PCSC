@@ -1,0 +1,508 @@
+/* 
+   Smart Home Dashboard – style.css
+*/
+
+/* Importa da Google Fonts due famiglie di caratteri: "DM Sans" e "DM Mono" (font monospaziato) */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+/* Reset & Variables */
+
+/* Regola di "reset": applicata a tutti gli elementi della pagina (il
+   selettore universale "*") e ai loro pseudo-elementi ::before/::after.
+        - "box-sizing: border-box" fa sì che quando imposti larghezza/altezza
+     di un elemento, padding e bordo vengano inclusi in quella misura
+     invece di aggiungersi (evita calcoli complicati più avanti)
+        - "margin: 0; padding: 0" azzera gli spazi che i browser aggiungono
+     di default a elementi come titoli, paragrafi, liste, così puoi
+     controllare tu ogni spaziatura senza sorprese */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ":root" è un selettore speciale che rappresenta l'elemento <html>.
+   Qui vengono definite delle variabili CSS (dette anche "custom properties"),
+   riconoscibili dal prefisso "--". Il vantaggio: se in futuro si volesse cambiare
+   il colore principale del sito, si potrebbe modificare in un solo punto ossia qui,
+   invece di doverlo cercare e sostituire in decine di righe sparse nel file.
+   Per usare una variabile altrove nel file si scrive "var(--nome-variabile)". */
+:root {
+    --bg:             #e8f4fd;   /* colore di sfondo generale della pagina (azzurro chiarissimo) */
+    --surface:        #ffffff;   /* colore di sfondo delle "card" (bianco) */
+    --sidebar:        #1565c0;   /* colore di sfondo della barra laterale (blu scuro) */
+    --sidebar-accent:  #1976d2;  /* colore di evidenziazione nella sidebar (blu leggermente più chiaro) */
+    --primary:        #1e88e5;   /* colore principale usato per bottoni, link attivi, ecc. */
+    --primary-dark:   #1565c0;   /* variante più scura del colore principale, usata per l'hover */
+    --text:           #0d2a4a;   /* colore del testo principale (blu molto scuro, quasi nero) */
+    --text-muted:     #5b7fa6;   /* colore per testo secondario/meno importante (blu-grigio) */
+    --border:         #c5dff5;   /* colore usato per i bordi sottili tra elementi */
+    --green:          #22c55e;   /* verde, usato per indicatori positivi (es. "Live") */
+    --shadow:         0 1px 3px rgba(21,101,192,.08), 0 4px 16px rgba(21,101,192,.10);
+                                    /* ombra a due livelli: una vicina e sottile, una più
+                                     ampia e sfumata, per dare profondità alle card */
+    --radius:         12px;         /* raggio standard degli angoli arrotondati di card e box */
+    --sidebar-w:      230px;        /* larghezza fissa della barra laterale */
+}
+
+/* Regole applicate sia a <html> che a <body> */
+html, body {
+    height: 100%;                       /* occupano tutta l'altezza della finestra del browser */
+    font-family: 'DM Sans', sans-serif;  /* font principale del sito (con "sans-serif" come
+                                            alternativa) */
+    background: var(--bg);              /* usa la variabile definita sopra per il colore di sfondo */
+    color: var(--text);                 /* colore di default del testo */
+    font-size: 15px;                    /* dimensione base del testo, da cui derivano proporzionalmente
+                                            eventuali dimensioni espresse in "em" (qui non usate, ma
+                                            è comunque la base per la leggibilità generale) */
+}
+
+/* Layout */
+
+/* Questa classe è sul contenitore più esterno della pagina. "display: flex" attiva il modello Flexbox: dispone i suoi
+   figli diretti (sidebar e main) uno accanto all'altro in riga, invece
+   che uno sotto l'altro come farebbero di default i div. */
+.layout {
+    display: flex;
+    min-height: 100vh;   /* "100vh" = 100% dell'altezza visibile della finestra (viewport height):
+                             garantisce che il layout riempia sempre tutto lo schermo anche se
+                             il contenuto è poco */
+}
+
+/* Sidebar */
+.sidebar {
+    width: var(--sidebar-w);
+    background: var(--sidebar);
+    display: flex;
+    flex-direction: column;   /* dentro la sidebar, i suoi elementi (logo, nav, footer) sono
+                                 impilati in colonna (uno sotto l'altro), non in riga */
+    padding: 28px 0 20px;     /* spaziatura interna: 28px sopra, 0 ai lati, 20px sotto */
+    position: fixed;          /* la sidebar resta "incollata" alla stessa posizione anche
+                                 quando si scrolla la pagina */
+    top: 0; left: 0; bottom: 0;  /* ancorata dall'alto in basso, sul lato sinistro */
+    z-index: 100;             /* la fa comparire sopra ad altri elementi in caso di sovrapposizione */
+}
+
+.sidebar-logo {
+    display: flex;
+    align-items: center;      /* centra verticalmente icona e testo del logo */
+    gap: 10px;                /* spazio tra icona e testo */
+    padding: 0 22px 28px;
+    border-bottom: 1px solid rgba(255,255,255,.08);  /* riga sottile e quasi trasparente per separare il logo dalla nav */
+}
+
+.sidebar-logo .icon {
+    width: 36px; height: 36px;
+    background: var(--primary);
+    border-radius: 9px;       /* angoli arrotondati, non un cerchio completo */
+    display: flex; align-items: center; justify-content: center;
+                                /* "justify-content: center" insieme ad "align-items: center"
+                                   centra il contenuto sia orizzontalmente che verticalmente
+                                   dentro il riquadro */
+    font-size: 18px;
+}
+
+.sidebar-logo span {
+    color: #fff;
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.2;   /* interlinea leggermente più stretta del default, per compattare
+                            il testo su due righe (nome + sottotitolo) */
+}
+
+.sidebar-logo small {
+    display: block;    /* forza l'elemento <small> (che di default è "inline") a comportarsi
+                           come un blocco, andando quindi a capo su una riga propria */
+    color: rgba(255,255,255,.45);   /* bianco semi-trasparente, per un testo più discreto */
+    font-size: 11px;
+    font-weight: 400;
+}
+
+nav { padding: 18px 12px; flex: 1; }   /* "flex: 1" fa sì che la <nav> occupi tutto lo spazio
+                                           verticale disponibile nella sidebar, spingendo così
+                                           il footer della sidebar in fondo */
+
+nav a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    color: rgba(255,255,255,.6);
+    text-decoration: none;   /* rimuove la sottolineatura di default dei link */
+    font-size: 14px;
+    font-weight: 500;
+    transition: background .15s, color .15s;   /* rende fluidi (invece che istantanei) i
+                                                    cambi di colore/sfondo su hover, in 0.15 secondi */
+    margin-bottom: 2px;
+}
+
+nav a:hover, nav a.active {
+    /* Stile applicato sia quando il mouse è sopra il link (":hover") sia
+       quando il link ha la classe "active" (cioè rappresenta la pagina
+       corrente, come "graph.html" nel file graph.html stesso) */
+    background: var(--sidebar-accent);
+    color: #fff;
+}
+
+nav a .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+.sidebar-footer {
+    padding: 16px 22px 0;
+    border-top: 1px solid rgba(255,255,255,.08);
+    color: rgba(255,255,255,.3);
+    font-size: 11px;
+}
+
+/* Main content */
+.main {
+    margin-left: var(--sidebar-w);  /* spinge tutto il contenuto principale a destra, lasciando
+                                        lo spazio esatto occupato dalla sidebar (che è "fixed" e
+                                        quindi non sposterebbe automaticamente gli altri elementi
+                                        da sola) */
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Topbar */
+.topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;  /* spinge titolo a sinistra e orologio/badge a destra,
+                                         lasciando spazio vuoto flessibile in mezzo */
+    position: sticky;   /* diversa da "fixed": resta agganciata in cima solo al contenitore
+                            .main mentre si scrolla, invece che rispetto a tutta la pagina */
+    top: 0;
+    z-index: 50;
+}
+
+.topbar-title { font-weight: 600; font-size: 16px; }
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+
+.topbar-time {
+    font-family: 'DM Mono', monospace;   /* font monospaziato: ogni cifra occupa la stessa
+                                             larghezza, così l'orologio risulta fluido visivamente
+                                             quando cambiano le cifre ogni secondo */
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* Page body */
+.page-body {
+    padding: 28px;
+    flex: 1;
+}
+
+/* Controls bar */
+.controls {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;    /* se lo spazio orizzontale non basta (es. su schermi stretti), gli
+                           elementi vanno a capo automaticamente invece di essere schiacciati */
+    margin-bottom: 24px;
+}
+
+.controls label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-right: 6px;
+}
+
+.controls select {
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;   /* eredita il font dall'elemento genitore invece di usare il
+                                font di default del browser per i menu a tendina */
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    cursor: pointer;         /* mostra il cursore al passaggio del mouse, per
+                                 indicare che l'elemento è cliccabile/interattivo */
+    outline: none;           /* rimuove il bordo blu di evidenziazione che i browser
+                                 aggiungono di default quando un elemento è selezionato
+                                 con tastiera/click (sostituito sotto da :focus personalizzato) */
+    transition: border-color .15s;
+}
+
+.controls select:focus { border-color: var(--primary); }  /* quando il menu è selezionato/attivo,
+                                                                il bordo diventa del colore principale
+                                                                invece dell'outline di default */
+
+.btn {
+    padding: 8px 18px;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+}
+
+.btn:hover { background: var(--primary-dark); }
+
+/* Grid */
+.grid-2 {
+    display: grid;   /* modello di layout CSS Grid, diverso da Flexbox: pensato per griglie
+                         a righe e colonne, non solo in una direzione */
+    grid-template-columns: 1fr 340px;   /* due colonne: la prima elastica ("1fr" = occupa
+                                            tutto lo spazio rimanente), la seconda a larghezza
+                                            fissa di 340px — usato per affiancare il grafico
+                                            alla piantina occupazione */
+    gap: 20px;    /* spazio tra le due colonne */
+    margin-bottom: 24px;
+}
+
+/* Cards */
+.card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;   /* nasconde qualunque contenuto che dovesse sporgere oltre i bordi
+                            arrotondati della card (es. angoli di un'immagine interna) */
+}
+
+.card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.card-title {
+    font-weight: 600;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.card-body { padding: 20px; }
+
+/* Chart */
+#chart-container {
+    /* Nota: questo selettore inizia con "#" (id), non "." (classe), perché
+       nella pagina esiste un solo elemento con id="chart-container" */
+    min-height: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.empty-state {
+    /* Stile dei messaggi tipo "Seleziona un sensore" o "Caricamento…" */
+    color: var(--text-muted);
+    font-size: 14px;
+    text-align: center;
+}
+
+/* Floorplan SVG  */
+#floorplan {
+    width: 100%;      /* la piantina si allarga per occupare tutto lo spazio della sua card */
+    height: auto;     /* l'altezza si adatta automaticamente per mantenere le proporzioni
+                          originali definite dal "viewBox" nell'SVG */
+    display: block;   /* evita lo spazio bianco extra che i browser aggiungono sotto gli
+                          elementi "inline" come <svg> e <img> di default */
+}
+
+.room {
+    transition: fill .4s ease;   /* quando dashboard.js cambia l'attributo "fill" (il colore)
+                                    di una stanza, il cambiamento avviene con una dissolvenza
+                                    graduale di 0.4 secondi invece che a scatto istantaneo */
+    cursor: default;             /* il cursore resta quello normale: le stanze
+                                    di questa piantina non sono cliccabili, sono solo indicatori */
+}
+
+.room-label {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    fill: #1e293b;         /* per il testo dentro un SVG, il colore si imposta con "fill"
+                                (l'equivalente di "color" per l'HTML normale) */
+    pointer-events: none;  /* l'etichetta di testo "ignora" i click e il passaggio del mouse,
+                                lasciandoli passare al rettangolo della stanza sotto di essa */
+}
+
+/* Stats bar */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+                          /* Griglia "responsive" senza media query: crea automaticamente
+                             tante colonne quante ce ne stanno, ciascuna larga almeno 180px
+                             ma capace di allargarsi ("1fr") per riempire lo spazio residuo.
+                             Su schermi stretti, alcune card scendono automaticamente in una
+                             nuova riga */
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.stat-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;   /* forza il testo in maiuscolo indipendentemente da come
+                                     è scritto nell'HTML */
+    letter-spacing: .05em;       /* aggiunge un piccolo spazio extra tra le lettere, per
+                                     migliorare la leggibilità del testo*/
+}
+
+.stat-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--primary);
+    font-family: 'DM Mono', monospace;   /* di nuovo il font monospaziato, per i numeri "in grande" delle statistiche */
+}
+
+.stat-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* Sensor table */
+.sensor-table {
+    width: 100%;
+    border-collapse: collapse;   /* fa sì che i bordi di celle adiacenti si "fondano" in
+                                     un'unica linea invece di raddoppiare/sovrapporsi */
+    font-size: 13px;
+}
+
+.sensor-table th {
+    background: var(--bg);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+.sensor-table td {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);   /* solo il bordo superiore, per creare righe
+                                                separatrici orizzontali senza doppie linee verticali */
+    font-family: 'DM Mono', monospace;
+}
+
+.sensor-table tr:hover td { background: #f8fafc; }   /* quando il mouse passa su una riga,
+                                                          tutte le sue celle si illuminano
+                                                          leggermente */
+
+/* Legend */
+.map-legend {
+    display: flex;
+    gap: 16px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.legend-dot {
+    display: inline-block;   /* permette di dare larghezza/altezza a un elemento che di
+                                 default (uno <span>) sarebbe "inline" e le ignorerebbe */
+    width: 10px; height: 10px;
+    border-radius: 50%;      /* pallino colorato della legenda */
+    margin-right: 5px;
+    vertical-align: middle;  /* allinea verticalmente il pallino al centro del testo accanto,
+                                 invece che alla base della riga di testo */
+}
+
+/* Login page */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;      /* centra verticalmente la login-box */
+    justify-content: center;  /* centra orizzontalmente la login-box */
+    background: var(--bg);
+}
+
+.login-box {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 40px 36px;
+    width: 360px;   /* larghezza fissa: a differenza della dashboard, qui non serve essere
+                        responsive in modo elaborato, un box centrato a larghezza fissa basta */
+}
+
+.login-logo {
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.login-logo .icon {
+    width: 52px; height: 52px;
+    background: var(--primary);
+    border-radius: 14px;
+    display: inline-flex; align-items: center; justify-content: center;
+                          /* "inline-flex" invece di "flex": si comporta come flexbox
+                             internamente, ma esternamente
+                             occupa solo lo spazio necessario invece di tutta la larghezza
+                             disponibile, così "text-align: center" del genitore lo centra */
+    font-size: 26px;
+    margin-bottom: 12px;
+}
+
+.login-logo h1 { font-size: 20px; font-weight: 700; }
+.login-logo p  { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+.form-group { margin-bottom: 16px; }
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--text-muted);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .15s;
+}
+
+.form-group input:focus { border-color: var(--primary); }
+
+.btn-full {
+    width: 38%;      /* nota: nonostante il nome della classe suggerisca "larghezza piena",
+                         il valore effettivo è 38% — probabilmente intenzionale per non far
+                         sembrare il bottone "Accedi" eccessivamente largo dentro il box di login */
+    padding: 10px;
+    font-size: 15px;
+    margin-top: 8px;
+}
