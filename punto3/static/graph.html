@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8"/>
+    <!-- Permette di rendere la pagina responsive, quindi di adattarsi alla larghezza dello schermo del dispositivo che viene utilizzato -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Smart Home Dashboard</title>
+    <!-- Collegamento al foglio di stile personalizzato con i colori e il layout della dashboard -->
+    <link rel="stylesheet" href="assets/css/style.css"/>
+    <!-- Foglio di stile della libreria Leaflet, necessario per disegnare correttamente
+         la mappa geografica realistica (senza questo, la mappa apparirebbe deformata o senza stile) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.4.0/dist/leaflet.css"/>
+</head>
+<body>
+<!-- Contenitore principale: divide la pagina in due colonne, sidebar a sinistra
+     e contenuto principale a destra (il layout è gestito da CSS con display:flex) -->
+<div class="layout">
+
+    <!-- Sidebar (ossia la barra laterale di navigazione a sinistra) -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span>Smart Home<small>IoT Dashboard</small></span>
+        </div>
+        <nav>
+            <!-- Link alla pagina corrente stessa, marcato come "active" per evidenziarlo, quindi sottolineato -->
+            <a href="graph.html" class="active">
+                <span class="nav-icon"></span> Dashboard
+            </a>
+            <!-- Link per tornare alla pagina di login -->
+            <a href="index.html">
+                <span class="nav-icon"></span> Logout
+            </a>
+        </nav>
+        <div class="sidebar-footer">Pervasive Computing<br/>& Cloud Services</div>
+    </aside>
+
+    <!-- Contenuto principale (a destra della sidebar) -->
+    <div class="main">
+
+        <!-- Barra superiore con titolo e orologio -->
+        <div class="topbar">
+            <span class="topbar-title">Dashboard Sensori</span>
+            <div class="topbar-right">
+                <!-- Questo span viene riempito da dashboard.js con l'orario corrente,
+                     aggiornato ogni secondo, così che rappresenti l'ora reale, questo permette di
+                     visualizzare l'ora corrente e garantire maggiore realismo all'invio dei dati dei sensori-->
+                <span class="topbar-time" id="clock"></span>
+            </div>
+        </div>
+
+        <!-- Corpo della pagina, sotto la topbar -->
+        <div class="page-body">
+
+            <!-- Due riquadri con numeri riassuntivi in alto -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-label">Sensori attivi</span>
+                    <!-- Questo numero viene riempito da dashboard.js (funzione loadSensorTable)
+                         con quanti sensori hanno inviato almeno un dato finora -->
+                    <span class="stat-value" id="sensor-count">—</span>
+                    <span class="stat-sub">su 11 totali</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Ultimo aggiornamento</span>
+                    <!-- Riempito da dashboard.js (funzione updateLastUpdate) con data/ora corrente -->
+                    <span class="stat-value" style="font-size:14px; padding-top:6px;" id="last-update">—</span>
+                    <span class="stat-sub">aggiornamento automatico</span>
+                </div>
+            </div>
+
+            <!-- Barra di controlli che permette di scegliere quale sensore e quante righe vedere nel grafico -->
+            <div class="controls">
+                <label for="sensor-select">Seleziona Sensore:</label>
+                <!-- Questo <select> viene riempito dinamicamente da
+                     dashboard.js (funzione populateSensorSelect) con le 11 opzioni,
+                     una per ciascun sensore -->
+                <select id="sensor-select"></select>
+
+                <label for="rows-select">Mostra ultime:</label>
+                <!-- A differenza del select sopra, qui le opzioni sono scritte
+                     direttamente nell'HTML, fisse, perché sono solo 4 valori costanti e non dipendono dai dati 
+                     questo permette di selezionare il numero di righe da visualizzare nel grafico-->
+                <select id="rows-select">
+                    <option value="50">50 righe</option>
+                    <option value="100" selected>100 righe</option>
+                    <option value="200">200 righe</option>
+                    <option value="500">500 righe</option>
+                </select>
+
+                <!-- Bottone che, se cliccato, forza il ricaricamento del grafico
+                     (gestito da dashboard.js con un event listener) -->
+                <button class="btn" id="btn-refresh">Aggiorna Grafico</button>
+            </div>
+
+            <!-- Riga con due colonne affiancate: grafico a sinistra, piantina che mostra l'occupazione a destra
+                 (il layout a due colonne è definito dalla classe CSS "grid-2") -->
+            <div class="grid-2">
+
+                <!-- Colonna 1: grafico temporale -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Andamento Temporale</span>
+                    </div>
+                    <div class="card-body">
+                        <!-- Questo div è il contenitore in cui dashboard.js (funzione loadChart)
+                             disegna il grafico Google Charts. Il testo dentro è solo un
+                             segnaposto iniziale, che viene sostituito appena arrivano i dati -->
+                        <div id="chart-container" style="min-height:320px; display:flex; align-items:center; justify-content:center;">
+                            <p class="empty-state">Seleziona un sensore per visualizzare il grafico.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Colonna 2: piantina con colore in base all'occupazione -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Occupazione Stanze</span>
+                    </div>
+                    <div class="card-body" style="padding: 16px;">
+                        <!-- Immagine SVG (grafica vettoriale), che rappresenta
+                             la piantina della casa vista dall'alto. "viewBox" definisce lo
+                             spazio di coordinate interno dell'immagine, che è
+                             indipendente dalla dimensione reale con cui viene mostrata a schermo -->
+                        <svg id="floorplan" viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Rettangolo di sfondo: il contorno esterno dell'intero edificio -->
+                            <rect x="2" y="2" width="396" height="256" rx="6"
+                                  fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+
+                            <!-- Stanza "KI" (cucina). Il colore di riempimento ("fill") di questo
+                                 rettangolo viene modificato dinamicamente da dashboard.js
+                                 (funzione loadFloorplan) in base all'ultimo dato del sensore
+                                 di occupazione: verde se libera, rosso se occupata,
+                                 azzurro chiaro/grigio se non c'è ancora nessun dato -->
+                            <rect id="room_ki" class="room" x="10" y="10" width="90" height="90"
+                                  fill="#b3d4f0" stroke="#94a3b8" stroke-width="1.5" rx="4"/>
+                            <!-- Etichetta di testo centrata dentro il rettangolo della stanza -->
+                            <text class="room-label" x="55" y="60" text-anchor="middle">KI</text>
+
+                            <!-- Le stanze seguenti (O1, MR, O4, O3, O2) seguono esattamente
+                                 la stessa identica struttura di "KI" sopra: un <rect> con id
+                                 univoco (usato da dashboard.js per colorarlo) più coordinate/
+                                 dimensioni diverse per posizionarlo nel punto giusto della
+                                 piantina, e un <text> con l'etichetta della stanza -->
+                            <rect id="room_o1" class="room" x="108" y="10" width="282" height="90"
+                                  fill="#b3d4f0" stroke="#94a3b8" stroke-width="1.5" rx="4"/>
+                            <text class="room-label" x="249" y="60" text-anchor="middle">O1</text>
+                            <rect id="room_mr" class="room" x="10" y="108" width="140" height="142"
+                                  fill="#b3d4f0" stroke="#94a3b8" stroke-width="1.5" rx="4"/>
+                            <text class="room-label" x="80" y="182" text-anchor="middle">MR</text>
+                            <rect id="room_o4" class="room" x="158" y="108" width="70" height="142"
+                                  fill="#b3d4f0" stroke="#94a3b8" stroke-width="1.5" rx="4"/>
+                            <text class="room-label" x="193" y="182" text-anchor="middle">O4</text>
+                            <rect id="room_o3" class="room" x="236" y="108" width="80" height="142"
+                                  fill="#b3d4f0" stroke="#94a3b8" stroke-width="1.5" rx="4"/>
+                            <text class="room-label" x="276" y="182" text-anchor="middle">O3</text>
+                            <rect id="room_o2" class="room" x="324" y="108" width="66" height="142"
+                                  fill="#b3d4f0" stroke="#94a3b8" stroke-width="1.5" rx="4"/>
+                            <text class="room-label" x="357" y="182" text-anchor="middle">O2</text>
+                        </svg>
+                    </div>
+                    <!-- Legenda dei colori usati nella piantina sopra, non collegata a nessuno script -->
+                    <div class="map-legend">
+                        <span><span class="legend-dot" style="background:#fca5a5;"></span>Occupata</span>
+                        <span><span class="legend-dot" style="background:#86efac;"></span>Libera</span>
+                        <span><span class="legend-dot" style="background:#b3d4f0;"></span>Nessun dato</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Seconda piantina: uguale nella forma della casa, ma qui lo scopo
+                 è diverso: invece di colorare le stanze, mostra un pallino cliccabile
+                 per ciascun sensore fisico, posizionato nella stanza dove si trova ===== -->
+            <div class="card" style="margin-bottom:24px;">
+                <div class="card-header">
+                    <span class="card-title">Posizione Sensori – clicca per vedere il grafico</span>
+                </div>
+                <div class="card-body" style="padding:16px; position:relative;">
+                    <!-- Piccolo riquadro nero che appare come "tooltip"
+                         quando il mouse passa sopra un marker. È nascosto di default
+                         (display:none) e viene mostrato/riempito da dashboard.js -->
+                    <div id="sensor-tooltip" style="display:none; position:absolute; background:#1e293b; color:#fff;
+                         padding:5px 10px; border-radius:6px; font-size:12px; pointer-events:none; z-index:10;
+                         top:10px; left:50%; transform:translateX(-50%);"></div>
+
+                    <!-- Stessa piantina di prima, ma con viewBox leggermente più alto per lasciare spazio in basso ai sensori "esterni" -->
+                    <svg id="floorplan-sensors" viewBox="0 0 420 290" xmlns="http://www.w3.org/2000/svg"
+                         style="width:100%; max-width:900px; display:block; margin:0 auto;">
+
+                        <!-- Sfondo edificio: identico concettualmente a quello della piantina precedente -->
+                        <rect x="2" y="2" width="396" height="256" rx="6"
+                              fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+
+                        <!-- Le sei stanze qui sotto sono disegnate di nuovo (stesse coordinate
+                             della piantina sopra) ma questa volta con colore fisso (azzurro chiaro,
+                             "#dbeafe"), perché in questa piantina il colore delle stanze non cambia
+                             mai: serve solo da sfondo su cui posizionare i pallini dei sensori -->
+                        <rect x="10" y="10" width="90" height="90" fill="#dbeafe" stroke="#94a3b8" stroke-width="1.5" rx="4"/>
+                        <text class="room-label" x="55" y="90" text-anchor="middle">KI</text>
+
+                        <rect x="108" y="10" width="282" height="90" fill="#dbeafe" stroke="#94a3b8" stroke-width="1.5" rx="4"/>
+                        <text class="room-label" x="249" y="90" text-anchor="middle">O1</text>
+
+                        <rect x="10" y="108" width="140" height="142" fill="#dbeafe" stroke="#94a3b8" stroke-width="1.5" rx="4"/>
+                        <text class="room-label" x="80" y="240" text-anchor="middle">MR</text>
+
+                        <rect x="158" y="108" width="70" height="142" fill="#dbeafe" stroke="#94a3b8" stroke-width="1.5" rx="4"/>
+                        <text class="room-label" x="193" y="240" text-anchor="middle">O4</text>
+
+                        <rect x="236" y="108" width="80" height="142" fill="#dbeafe" stroke="#94a3b8" stroke-width="1.5" rx="4"/>
+                        <text class="room-label" x="276" y="240" text-anchor="middle">O3</text>
+
+                        <rect x="324" y="108" width="66" height="142" fill="#dbeafe" stroke="#94a3b8" stroke-width="1.5" rx="4"/>
+                        <text class="room-label" x="357" y="240" text-anchor="middle">O2</text>
+
+                        <!-- Marker dei sensori nella stanza KI (5 sensori) 
+                             Ogni marker è un gruppo <g> con classe "sensor-marker", che
+                             dashboard.js (con la funzione initSensorMarkers) individua con
+                             "document.querySelectorAll('.sensor-marker')" per aggiungergli
+                             i comportamenti al click e al passaggio del mouse.
+
+                             Attributi chiave di ogni marker:
+                                - "data-sensor": nome tecnico del sensore (deve coincidere
+                                    esattamente con il nome usato per il server,
+                                    es. "01_occ"), usato per sapere quale grafico caricare al click
+                                - "data-label": testo leggibile mostrato nel tooltip al passaggio
+                                    del mouse
+                             All'interno: un <circle> (il pallino blu) e un <text> con il
+                             numero del sensore scritto sopra -->
+                        <g class="sensor-marker" data-sensor="01_occ" data-label="Occupancy (KI)" style="cursor:pointer;">
+                            <circle cx="28" cy="28" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="28" y="32" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">1</text>
+                        </g>
+                        <!-- Da qui in poi, tutti i marker seguono la stessa identica struttura
+                             di quello sopra: cambiano solo "data-sensor" (in base a quale sensore
+                             rappresentano), "data-label" (etichetta nel tooltip), le
+                             coordinate cx/cy (dove viene disegnato il pallino nella stanza)
+                             e il numero scritto dentro il cerchio -->
+                        <g class="sensor-marker" data-sensor="02_win" data-label="Windows (KI)" style="cursor:pointer;">
+                            <circle cx="55" cy="28" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="55" y="32" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">2</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="03_light" data-label="Light (KI)" style="cursor:pointer;">
+                            <circle cx="82" cy="28" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="82" y="32" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">3</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="05_temp_in" data-label="Temp. Interna (KI)" style="cursor:pointer;">
+                            <circle cx="37" cy="52" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="37" y="56" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">5</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="06_rhu_in" data-label="Umidità Interna (KI)" style="cursor:pointer;">
+                            <circle cx="73" cy="52" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="73" y="56" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">6</text>
+                        </g>
+
+                        <!-- Marker nella stanza O1 (6 sensori) — stessa identica struttura,
+                             cambia solo la stanza indicata tra parentesi in "data-label" e
+                             le coordinate, che li posizionano dentro il rettangolo O1 -->
+                        <g class="sensor-marker" data-sensor="01_occ" data-label="Occupancy (O1)" style="cursor:pointer;">
+                            <circle cx="135" cy="28" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="135" y="32" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">1</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="02_win" data-label="Windows (O1)" style="cursor:pointer;">
+                            <circle cx="200" cy="28" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="200" y="32" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">2</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="03_light" data-label="Light (O1)" style="cursor:pointer;">
+                            <circle cx="265" cy="28" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="265" y="32" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">3</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="04_plug" data-label="Plug Loads (O1)" style="cursor:pointer;">
+                            <circle cx="330" cy="28" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="330" y="32" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">4</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="05_temp_in" data-label="Temp. Interna (O1)" style="cursor:pointer;">
+                            <circle cx="233" cy="52" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="233" y="56" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">5</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="06_rhu_in" data-label="Umidità Interna (O1)" style="cursor:pointer;">
+                            <circle cx="363" cy="52" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="363" y="56" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">6</text>
+                        </g>
+
+                        <!-- Marker nella stanza MR (3 sensori: 02, 05, 06) — stessa struttura -->
+                        <g class="sensor-marker" data-sensor="02_win" data-label="Windows (MR)" style="cursor:pointer;">
+                            <circle cx="35" cy="130" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="35" y="134" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">2</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="05_temp_in" data-label="Temp. Interna (MR)" style="cursor:pointer;">
+                            <circle cx="80" cy="130" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="80" y="134" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">5</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="06_rhu_in" data-label="Umidità Interna (MR)" style="cursor:pointer;">
+                            <circle cx="125" cy="130" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="125" y="134" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">6</text>
+                        </g>
+
+                        <!-- Marker nella stanza O4 (6 sensori) — stessa struttura -->
+                        <g class="sensor-marker" data-sensor="01_occ" data-label="Occupancy (O4)" style="cursor:pointer;">
+                            <circle cx="172" cy="125" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="172" y="129" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">1</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="02_win" data-label="Windows (O4)" style="cursor:pointer;">
+                            <circle cx="210" cy="125" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="210" y="129" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">2</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="03_light" data-label="Light (O4)" style="cursor:pointer;">
+                            <circle cx="172" cy="155" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="172" y="159" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">3</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="04_plug" data-label="Plug Loads (O4)" style="cursor:pointer;">
+                            <circle cx="210" cy="155" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="210" y="159" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">4</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="05_temp_in" data-label="Temp. Interna (O4)" style="cursor:pointer;">
+                            <circle cx="172" cy="185" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="172" y="189" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">5</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="06_rhu_in" data-label="Umidità Interna (O4)" style="cursor:pointer;">
+                            <circle cx="210" cy="185" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="210" y="189" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">6</text>
+                        </g>
+
+                        <!-- Marker nella stanza O3 (6 sensori) — stessa struttura -->
+                        <g class="sensor-marker" data-sensor="01_occ" data-label="Occupancy (O3)" style="cursor:pointer;">
+                            <circle cx="250" cy="125" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="250" y="129" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">1</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="02_win" data-label="Windows (O3)" style="cursor:pointer;">
+                            <circle cx="276" cy="125" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="276" y="129" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">2</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="03_light" data-label="Light (O3)" style="cursor:pointer;">
+                            <circle cx="302" cy="125" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="302" y="129" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">3</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="04_plug" data-label="Plug Loads (O3)" style="cursor:pointer;">
+                            <circle cx="250" cy="155" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="250" y="159" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">4</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="05_temp_in" data-label="Temp. Interna (O3)" style="cursor:pointer;">
+                            <circle cx="276" cy="155" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="276" y="159" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">5</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="06_rhu_in" data-label="Umidità Interna (O3)" style="cursor:pointer;">
+                            <circle cx="302" cy="155" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="302" y="159" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">6</text>
+                        </g>
+
+                        <!-- Marker nella stanza O2 (6 sensori) — stessa struttura -->
+                        <g class="sensor-marker" data-sensor="01_occ" data-label="Occupancy (O2)" style="cursor:pointer;">
+                            <circle cx="334" cy="125" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="334" y="129" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">1</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="02_win" data-label="Windows (O2)" style="cursor:pointer;">
+                            <circle cx="357" cy="125" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="357" y="129" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">2</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="03_light" data-label="Light (O2)" style="cursor:pointer;">
+                            <circle cx="380" cy="125" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="380" y="129" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">3</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="04_plug" data-label="Plug Loads (O2)" style="cursor:pointer;">
+                            <circle cx="334" cy="155" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="334" y="159" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">4</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="05_temp_in" data-label="Temp. Interna (O2)" style="cursor:pointer;">
+                            <circle cx="357" cy="155" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="357" y="159" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">5</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="06_rhu_in" data-label="Umidità Interna (O2)" style="cursor:pointer;">
+                            <circle cx="380" cy="155" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="380" y="159" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">6</text>
+                        </g>
+
+                        <!-- Sensori "esterni" (07-11): a differenza degli altri, non si
+                             trovano dentro nessuna stanza dell'edificio, quindi sono disegnati
+                             in una fascia separata sotto la piantina, con un'etichetta di testo
+                             ("Sensori esterni") sopra di loro. Stessa struttura <g>+<circle>+<text>
+                             dei marker precedenti  -->
+                        <text x="210" y="272" text-anchor="middle" font-size="9" fill="#64748b">Sensori esterni</text>
+                        <g class="sensor-marker" data-sensor="07_rad_global" data-label="Radiazione Globale" style="cursor:pointer;">
+                            <circle cx="120" cy="283" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="120" y="287" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">7</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="08_temp_out" data-label="Temp. Esterna" style="cursor:pointer;">
+                            <circle cx="153" cy="283" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="153" y="287" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">8</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="09_rhu_out" data-label="Umidità Esterna" style="cursor:pointer;">
+                            <circle cx="186" cy="283" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="186" y="287" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">9</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="10_wsp" data-label="Velocità Vento" style="cursor:pointer;">
+                            <circle cx="219" cy="283" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="219" y="287" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">10</text>
+                        </g>
+                        <g class="sensor-marker" data-sensor="11_wdi" data-label="Direzione Vento" style="cursor:pointer;">
+                            <circle cx="252" cy="283" r="8" fill="#1e88e5" stroke="#fff" stroke-width="2"/>
+                            <text x="252" y="287" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">11</text>
+                        </g>
+
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Mappa geografica reale (Leaflet), mostra dove si trova fisicamente
+                 l'edificio nel mondo (quindi in questo caso non è la piantina interna, è una mappa tipo Google Maps) -->
+            <div class="card" style="margin-bottom:24px;">
+                <div class="card-header">
+                    <span class="card-title">Posizione Edificio</span>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    <!-- Questo div vuoto è il contenitore in cui la libreria Leaflet
+                         (inizializzata nello script in fondo alla pagina) disegna la mappa -->
+                    <div id="leaflet-map" style="height:340px; border-radius:0 0 12px 12px;"></div>
+                </div>
+            </div>
+
+            <!-- Tabella con l'ultimo valore ricevuto per ciascun sensore attivo -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Stato Sensori</span>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    <table class="sensor-table">
+                        <thead>
+                            <tr>
+                                <th>Sensore</th>
+                                <th>Ultimo valore</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <!-- Il corpo della tabella è vuoto qui: viene riempito riga per riga
+                             da dashboard.js (funzione loadSensorTable), che interroga il server
+                             per ogni sensore e aggiunge una <tr> con i suoi dati -->
+                        <tbody id="sensor-tbody">
+                            <tr><td colspan="3" style="text-align:center; color:#64748b; padding:20px;">
+                                Caricamento…
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div><!-- /page-body -->
+    </div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- Script esterni, caricati da CDN (Content Delivery Network)
+     Devono essere inclusi PRIMA di dashboard.js, perché quest'ultimo li usa
+     (jQuery per $.getJSON, Google Charts per i grafici, Leaflet per la mappa) -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
+<script src="assets/js/dashboard.js"></script>
+<script>
+    // Inizializza la mappa geografica Leaflet dentro il div "leaflet-map".
+    // "setView([48.1986, 16.3702], 15)" centra la mappa su queste coordinate
+    // (latitudine, longitudine) con livello di zoom 15 
+    var leafletMap = L.map('leaflet-map').setView([48.1986, 16.3702], 15);
+
+    // Aggiunge lo strato di "tile" (le immagini della mappa vera e propria)
+    // presi da OpenStreetMap, un servizio di mappe gratuito e open source
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(leafletMap);
+
+    // Aggiunge un singolo marker sulla mappa, nello stesso punto
+    // su cui è centrata la vista, con un fumetto (popup) che si apre subito
+    // grazie a ".openPopup()", mostrando informazioni sull'edificio.
+    var marker = L.marker([48.1986, 16.3702]).addTo(leafletMap);
+    marker.bindPopup('<b>Smart Home Office</b><br>Edificio monitorato<br>11 sensori attivi').openPopup();
+</script>
+</body>
+</html>
